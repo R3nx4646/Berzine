@@ -73,7 +73,7 @@ This project is part of an exploration of **digital poetry, micro-publishing, an
 ## ✦ License
 
 MIT License  
-Feel free to remix, modify, and reuse — with credit.
+Feel free to remix, modify, and reuse.
 
 ---
 
