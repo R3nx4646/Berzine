@@ -1,0 +1,621 @@
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Special+Elite&family=Playfair+Display:ital,wght@0,400;0,700;0,900;1,400&family=Space+Mono:wght@400;700&family=Cormorant+Garamond:ital,wght@0,300;0,600;1,300&family=Bebas+Neue&display=swap"/>
+
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:var(--font-sans);background:transparent}
+.app{display:flex;gap:0;height:100%;min-height:600px}
+
+/* ── Sidebar ── */
+.editor{width:240px;flex-shrink:0;background:#111;border-right:1px solid #2a2a2a;display:flex;flex-direction:column;overflow-y:auto}
+.editor-header{padding:14px 16px 10px;border-bottom:1px solid #2a2a2a}
+.editor-title{font-size:18px;font-weight:700;color:#fff;letter-spacing:5px;font-family:'Special Elite',monospace}
+.editor-tagline{font-size:9px;color:#444;letter-spacing:2px;margin-top:3px;font-family:'Special Elite',monospace}
+.section{padding:12px 14px;border-bottom:1px solid #1e1e1e}
+.label{font-size:10px;color:#666;letter-spacing:2px;text-transform:uppercase;margin-bottom:6px;font-family:'Special Elite',monospace}
+
+/* ── Inputs ── */
+input[type=text],textarea{
+  width:100%;background:#1a1a1a;border:1px solid #2a2a2a;
+  color:#ddd;padding:8px 10px;font-size:13px;
+  font-family:'Special Elite',monospace;resize:none;
+  outline:none;border-radius:4px;transition:border-color .2s
+}
+input[type=text]:focus,textarea:focus{border-color:#555}
+textarea{min-height:90px;line-height:1.6}
+
+/* ── Char counter ── */
+.char-row{display:flex;justify-content:space-between;align-items:center;margin-top:5px}
+.char-counter{font-size:9px;color:#444;font-family:'Special Elite',monospace;letter-spacing:1px;transition:color .2s}
+.char-counter.warn{color:#e76f51}
+.char-counter.full{color:#ff1a1a}
+.imbauan{font-size:9px;color:#333;font-style:italic;font-family:'Special Elite',monospace;letter-spacing:1px}
+
+/* ── Template grid ── */
+.tmpl-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.tmpl-btn{
+  background:#1a1a1a;border:1.5px solid #2a2a2a;color:#888;
+  padding:7px 6px;cursor:pointer;font-family:'Special Elite',monospace;
+  font-size:10px;letter-spacing:1px;border-radius:4px;
+  transition:all .15s;text-align:center
+}
+.tmpl-btn:hover{border-color:#555;color:#ccc}
+.tmpl-btn.active{border-color:var(--ac);color:var(--ac);background:#1f1f1f}
+.tmpl-desc{font-size:9px;opacity:0.6;display:block;margin-top:2px}
+
+/* ── Accent dots ── */
+.accent-row{display:flex;gap:6px;flex-wrap:wrap}
+.accent-dot{width:22px;height:22px;border-radius:50%;cursor:pointer;border:2px solid transparent;transition:all .15s;flex-shrink:0}
+.accent-dot.active{border-color:#fff;transform:scale(1.15)}
+
+/* ── Photo upload ── */
+.photo-upload-area{display:flex;flex-direction:column;gap:6px}
+#photo-thumb{display:none;width:100%;height:80px;object-fit:cover;border-radius:4px;border:1px solid #2a2a2a}
+.photo-btn{
+  display:block;background:#1a1a1a;border:1.5px dashed #3a3a3a;
+  color:#666;padding:9px 10px;cursor:pointer;
+  font-family:'Special Elite',monospace;font-size:10px;
+  letter-spacing:1px;border-radius:4px;text-align:center;transition:all .15s
+}
+.photo-btn:hover{border-color:#555;color:#aaa}
+#photo-remove{
+  display:none;background:transparent;border:1px solid #2a2a2a;
+  color:#555;padding:5px 10px;font-family:'Special Elite',monospace;
+  font-size:9px;letter-spacing:1px;cursor:pointer;border-radius:4px;
+  width:100%;text-align:center;transition:all .15s
+}
+#photo-remove:hover{border-color:#ff4444;color:#ff4444}
+.photo-error{font-size:9px;color:#e76f51;font-family:'Special Elite',monospace;letter-spacing:1px;display:none}
+
+/* ── Preview pane ── */
+.preview-pane{
+  flex:1;background:#0d0d0d;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-start;
+  padding:20px 16px;overflow-y:auto;gap:16px
+}
+.preview-label{font-size:9px;color:#444;letter-spacing:3px;font-family:'Special Elite',monospace}
+.zine-frame{width:270px;height:480px;position:relative;overflow:hidden;flex-shrink:0}
+
+/* ── Export button ── */
+.export-btn{
+  background:var(--ac);color:#000;border:none;
+  padding:10px 20px;font-family:'Special Elite',monospace;
+  font-size:12px;letter-spacing:2px;cursor:pointer;
+  font-weight:bold;width:100%;border-radius:4px;transition:opacity .15s
+}
+.export-btn:hover{opacity:0.85}
+.export-btn:disabled{opacity:0.4;cursor:not-allowed}
+.export-hint{font-size:9px;color:#444;text-align:center;letter-spacing:1px}
+</style>
+
+<div class="app" id="app">
+  <!-- ── Sidebar ── -->
+  <div class="editor">
+    <div class="editor-header">
+      <div class="editor-title">BERZINE</div>
+      <div class="editor-tagline">bikin zine-mu sendiri</div>
+    </div>
+
+    <div class="section">
+      <div class="label">Judul</div>
+      <input type="text" id="inp-title" placeholder="Judul zinemu..." maxlength="60" autocomplete="off"/>
+    </div>
+
+    <div class="section">
+      <div class="label">Isi / Teks</div>
+      <textarea id="inp-body" placeholder="Tulis sesuatu. Puisi, refleksi, manifesto..." maxlength="100"></textarea>
+      <div class="char-row">
+        <div class="imbauan">Yang pendek kadang lebih bermakna.</div>
+        <div class="char-counter" id="char-counter">0/100</div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="label">Nama / Tag</div>
+      <input type="text" id="inp-tag" placeholder="namamu atau @handle" maxlength="30" autocomplete="off"/>
+    </div>
+
+    <div class="section">
+      <div class="label">Foto</div>
+      <div class="photo-upload-area">
+        <img id="photo-thumb" alt="foto preview"/>
+        <label class="photo-btn" for="inp-photo" id="photo-label-btn">＋ Tambah Foto</label>
+        <input type="file" id="inp-photo" accept="image/jpeg,image/png,image/webp,image/gif" style="display:none"/>
+        <button type="button" id="photo-remove">✕ Hapus Foto</button>
+        <div class="photo-error" id="photo-error"></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <div class="label">Template</div>
+      <div class="tmpl-grid" id="tmpl-grid"></div>
+    </div>
+
+    <div class="section">
+      <div class="label">Warna Aksen</div>
+      <div class="accent-row" id="accent-row"></div>
+    </div>
+
+    <div class="section">
+      <button type="button" class="export-btn" id="export-btn">↓ SIMPAN SEBAGAI PNG</button>
+      <div class="export-hint" style="margin-top:8px">1080 × 1920 HD · siap untuk Instagram Story</div>
+    </div>
+  </div>
+
+  <!-- ── Preview ── -->
+  <div class="preview-pane">
+    <div class="preview-label">PREVIEW ZINE</div>
+    <div class="zine-frame" id="zine-preview"></div>
+    <div class="preview-label" style="margin-top:4px">preview 270×480 · ekspor HD 1080×1920</div>
+  </div>
+</div>
+
+<!-- Off-screen export container -->
+<div id="export-canvas-container" style="position:fixed;left:-9999px;top:-9999px;width:1080px;height:1920px;overflow:hidden;pointer-events:none;"></div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script>
+'use strict';
+
+/* ═══════════════════════════════════════
+   CONSTANTS
+═══════════════════════════════════════ */
+const MAX_BODY_CHARS = 100;
+const MAX_PHOTO_BYTES = 8 * 1024 * 1024; // 8 MB
+const EXPORT_SCALE = 4; // 270×480 × 4 = 1080×1920
+
+const TEMPLATES = [
+  { id:'riot', name:'RIOT', desc:'Punk DIY'   },
+  { id:'soft', name:'SOFT', desc:'Risograph'  },
+  { id:'ink',  name:'INK',  desc:'Editorial'  },
+  { id:'dusk', name:'DUSK', desc:'Moody'      },
+  { id:'torn', name:'TORN', desc:'Collage'    },
+];
+
+const ACCENTS = {
+  riot: ['#ff1a1a','#ff6b35','#ffd60a','#06ffa5','#4895ef','#c77dff'],
+  soft: ['#ff8fab','#ffafcc','#cdb4db','#bde0fe','#a2d2ff','#ffc8dd'],
+  ink:  ['#111111','#1a1a2e','#4a4e69','#2d6a4f','#6d2b3d','#5c4033'],
+  dusk: ['#ffd60a','#e9c46a','#f4a261','#e76f51','#90e0ef','#c77dff'],
+  torn: ['#ff595e','#ffca3a','#6a4c93','#1982c4','#8ac926','#ff595e'],
+};
+
+/* ═══════════════════════════════════════
+   STATE
+═══════════════════════════════════════ */
+const state = {
+  title:    '',
+  body:     '',
+  tag:      '',
+  template: 'riot',
+  accent:   '#ff1a1a',
+  photo:    null,     // data URL or null
+};
+
+/* ═══════════════════════════════════════
+   UTILS
+═══════════════════════════════════════ */
+function esc(str) {
+  return String(str ?? '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function getAccents(tmpl) {
+  return ACCENTS[tmpl] ?? ACCENTS.riot;
+}
+
+// Simple debounce – returns a fn that delays `fn` by `ms`
+function debounce(fn, ms) {
+  let timer;
+  return function(...args) {
+    clearTimeout(timer);
+    timer = setTimeout(() => fn.apply(this, args), ms);
+  };
+}
+
+/* ═══════════════════════════════════════
+   RENDER: ACCENT DOTS
+═══════════════════════════════════════ */
+function renderAccents() {
+  const row = document.getElementById('accent-row');
+  row.innerHTML = '';
+  getAccents(state.template).forEach(ac => {
+    const d = document.createElement('div');
+    // FIX: compare against state.accent, not position index
+    d.className = 'accent-dot' + (ac === state.accent ? ' active' : '');
+    d.style.background = ac;
+    d.dataset.ac = ac;
+    d.addEventListener('click', () => setAccent(ac));
+    row.appendChild(d);
+  });
+}
+
+/* ═══════════════════════════════════════
+   ACTIONS
+═══════════════════════════════════════ */
+function setTemplate(id) {
+  state.template = id;
+  state.accent   = getAccents(id)[0];
+  document.getElementById('app').style.setProperty('--ac', state.accent);
+  document.querySelectorAll('.tmpl-btn').forEach(b =>
+    b.classList.toggle('active', b.dataset.id === id)
+  );
+  renderAccents();
+  renderTemplate();
+}
+
+function setAccent(ac) {
+  state.accent = ac;
+  document.getElementById('app').style.setProperty('--ac', ac);
+  document.querySelectorAll('.accent-dot').forEach(d =>
+    d.classList.toggle('active', d.dataset.ac === ac)
+  );
+  renderTemplate();
+}
+
+/* ═══════════════════════════════════════
+   CHAR COUNTER
+═══════════════════════════════════════ */
+function updateCharCounter(len) {
+  const el = document.getElementById('char-counter');
+  el.textContent = `${len}/${MAX_BODY_CHARS}`;
+  el.className = 'char-counter' + (len >= MAX_BODY_CHARS ? ' full' : len >= 80 ? ' warn' : '');
+}
+
+/* ═══════════════════════════════════════
+   PHOTO UPLOAD
+═══════════════════════════════════════ */
+function showPhotoError(msg) {
+  const el = document.getElementById('photo-error');
+  el.textContent = msg;
+  el.style.display = msg ? 'block' : 'none';
+}
+
+function handlePhotoChange(e) {
+  const file = e.target.files[0];
+  if (!file) return;
+
+  // Validate type
+  if (!file.type.startsWith('image/')) {
+    showPhotoError('File harus berupa gambar.');
+    e.target.value = '';
+    return;
+  }
+  // Validate size
+  if (file.size > MAX_PHOTO_BYTES) {
+    showPhotoError('Ukuran foto maks 8 MB.');
+    e.target.value = '';
+    return;
+  }
+  showPhotoError('');
+
+  const reader = new FileReader();
+  reader.onerror = () => showPhotoError('Gagal membaca file.');
+  reader.onload = evt => {
+    state.photo = evt.target.result;
+    const thumb = document.getElementById('photo-thumb');
+    thumb.src   = state.photo;
+    thumb.style.display = 'block';
+    document.getElementById('photo-remove').style.display = 'block';
+    const short = file.name.length > 18
+      ? file.name.substring(0, 16) + '…'
+      : file.name;
+    document.getElementById('photo-label-btn').textContent = '✓ ' + short;
+    renderTemplate();
+  };
+  reader.readAsDataURL(file);
+}
+
+function removePhoto() {
+  state.photo = null;
+  document.getElementById('inp-photo').value = '';
+  document.getElementById('photo-thumb').style.display  = 'none';
+  document.getElementById('photo-remove').style.display = 'none';
+  document.getElementById('photo-label-btn').textContent = '＋ Tambah Foto';
+  showPhotoError('');
+  renderTemplate();
+}
+
+/* ═══════════════════════════════════════
+   INPUT HANDLER (debounced)
+═══════════════════════════════════════ */
+const onInput = debounce(function() {
+  state.title = document.getElementById('inp-title').value;
+  state.tag   = document.getElementById('inp-tag').value;
+
+  // Enforce max chars on body (belt + suspenders alongside maxlength attr)
+  const rawBody = document.getElementById('inp-body').value;
+  state.body = rawBody.slice(0, MAX_BODY_CHARS);
+  if (rawBody.length > MAX_BODY_CHARS) {
+    document.getElementById('inp-body').value = state.body;
+  }
+
+  updateCharCounter(state.body.length);
+  renderTemplate();
+}, 80);
+
+/* ═══════════════════════════════════════
+   TEMPLATE BUILDER
+═══════════════════════════════════════ */
+function buildTemplate(s, scale) {
+  scale = scale || 1;
+  const { title, body, tag, template, accent, photo } = s;
+  const ac       = accent;
+  const w        = 270 * scale;
+  const h        = 480 * scale;
+  const f        = scale;
+  const hasPhoto = !!photo;
+
+  // Safely inject photo src (data URLs are base64 – safe in attributes)
+  function imgEl(width, height, extraStyle) {
+    return `<img src="${photo}" width="${width}" height="${height}" style="width:${width}px;height:${height}px;object-fit:cover;display:block;${extraStyle || ''}" />`;
+  }
+
+  // ── RIOT ──────────────────────────────
+  function tmplRiot() {
+    const tSize    = title.length > 25 ? 28*f : 40*f;
+    const bodyMaxH = hasPhoto ? 68*f : 220*f;
+    return `
+      <div style="width:${w}px;height:${h}px;background:#0c0c0c;font-family:'Special Elite',monospace;position:relative;overflow:hidden;box-sizing:border-box;">
+        <div style="position:absolute;inset:0;border:${6*f}px solid ${ac};pointer-events:none;z-index:10;"></div>
+        <div style="position:absolute;inset:${14*f}px;border:${1.5*f}px dashed ${ac};pointer-events:none;z-index:10;opacity:0.5;"></div>
+        <div style="padding:${22*f}px;position:relative;z-index:1;">
+          <div style="background:${ac};padding:${5*f}px ${10*f}px;display:flex;justify-content:space-between;align-items:center;margin-bottom:${12*f}px;">
+            <span style="color:#0c0c0c;font-weight:bold;font-size:${10*f}px;letter-spacing:${3*f}px;">★ BERZINE ★</span>
+            <span style="color:#0c0c0c;font-size:${9*f}px;letter-spacing:${1*f}px;">VOL.001</span>
+          </div>
+          <div style="color:#fff;font-size:${tSize}px;font-weight:bold;line-height:1.0;letter-spacing:${-1*f}px;text-transform:uppercase;word-break:break-word;margin-bottom:${8*f}px;min-height:${hasPhoto?38*f:58*f}px;">
+            ${esc(title) || 'JUDUL ZINE'}
+          </div>
+          <div style="height:${4*f}px;background:${ac};margin-bottom:${8*f}px;"></div>
+          ${hasPhoto ? `<div style="overflow:hidden;margin-bottom:${8*f}px;">${imgEl(w-44*f, 110*f)}</div>` : ''}
+          <div style="color:#b0b0b0;font-size:${13*f}px;line-height:1.8;word-break:break-word;white-space:pre-wrap;max-height:${bodyMaxH}px;overflow:hidden;">
+            ${esc(body) || 'Tulis sesuatu di sini. Kata-katamu adalah seni.'}
+          </div>
+        </div>
+        <div style="position:absolute;bottom:0;left:0;right:0;background:${ac};padding:${9*f}px ${22*f}px;display:flex;justify-content:space-between;z-index:2;">
+          <span style="color:#0c0c0c;font-size:${11*f}px;font-weight:bold;letter-spacing:${1*f}px;">— ${esc(tag||'anonim').toUpperCase()}</span>
+          <span style="color:#0c0c0c;font-size:${11*f}px;">★★★</span>
+        </div>
+      </div>`;
+  }
+
+  // ── SOFT ──────────────────────────────
+  function tmplSoft() {
+    const tSize    = title.length > 25 ? 24*f : 34*f;
+    const bodyMaxH = hasPhoto ? 72*f : 235*f;
+    return `
+      <div style="width:${w}px;height:${h}px;background:#faf7f2;font-family:'Playfair Display',Georgia,serif;position:relative;overflow:hidden;box-sizing:border-box;">
+        <div style="height:${65*f}px;background:${ac};position:relative;flex-shrink:0;">
+          <div style="position:absolute;bottom:-1px;left:0;right:0;height:${18*f}px;background:#faf7f2;border-radius:50% 50% 0 0/100% 100% 0 0;"></div>
+          <span style="position:absolute;top:${18*f}px;left:50%;transform:translateX(-50%);color:#fff;font-size:${9*f}px;letter-spacing:${4*f}px;font-family:'Special Elite',monospace;white-space:nowrap;">BERZINE</span>
+        </div>
+        <div style="padding:${10*f}px ${24*f}px;">
+          <div style="text-align:center;color:${ac};font-size:${14*f}px;margin-bottom:${8*f}px;">✦ ✦ ✦</div>
+          <div style="color:#3d2b1f;font-size:${tSize}px;font-weight:900;font-style:italic;line-height:1.1;text-align:center;margin-bottom:${10*f}px;word-break:break-word;">
+            ${esc(title) || 'Judul Zine'}
+          </div>
+          ${hasPhoto ? `
+            <div style="width:${148*f}px;height:${104*f}px;overflow:hidden;border-radius:${8*f}px;margin:0 auto ${10*f}px;border:${3*f}px solid ${ac};">
+              ${imgEl(148*f, 104*f)}
+            </div>
+          ` : `
+            <div style="display:flex;align-items:center;gap:${8*f}px;margin-bottom:${14*f}px;">
+              <div style="flex:1;height:1px;background:${ac};opacity:0.4;"></div>
+              <span style="color:${ac};font-size:${13*f}px;">♦</span>
+              <div style="flex:1;height:1px;background:${ac};opacity:0.4;"></div>
+            </div>
+          `}
+          <div style="color:#5a4033;font-size:${14*f}px;line-height:1.85;text-align:center;word-break:break-word;white-space:pre-wrap;max-height:${bodyMaxH}px;overflow:hidden;">
+            ${esc(body) || 'Tulis sesuatu di sini. Kata-katamu adalah seni.'}
+          </div>
+        </div>
+        <div style="position:absolute;bottom:${16*f}px;left:0;right:0;text-align:center;">
+          <div style="color:${ac};font-size:${9*f}px;letter-spacing:${3*f}px;font-family:'Special Elite',monospace;">
+            — ${esc(tag||'anonim').toUpperCase()} —
+          </div>
+        </div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:${5*f}px;background:${ac};"></div>
+      </div>`;
+  }
+
+  // ── INK ───────────────────────────────
+  function tmplInk() {
+    const tSize    = title.length > 20 ? 28*f : 42*f;
+    const bodyMaxH = hasPhoto ? 78*f : 235*f;
+    return `
+      <div style="width:${w}px;height:${h}px;background:#f8f8f8;font-family:'Space Mono','Courier New',monospace;position:relative;overflow:hidden;box-sizing:border-box;border:${3*f}px solid ${ac};">
+        <div style="background:${ac};color:#f8f8f8;padding:${10*f}px ${18*f}px;display:flex;justify-content:space-between;align-items:center;">
+          <span style="font-size:${9*f}px;letter-spacing:${4*f}px;font-weight:bold;">BERZINE</span>
+          <span style="font-size:${9*f}px;letter-spacing:${2*f}px;">NO.001</span>
+        </div>
+        ${hasPhoto ? `<div style="overflow:hidden;">${imgEl(w-6*f, 128*f)}</div>` : ''}
+        <div style="padding:${hasPhoto ? 8*f : 16*f}px ${18*f}px;">
+          ${!hasPhoto ? `<div style="font-size:${9*f}px;color:#999;letter-spacing:${2*f}px;margin-bottom:${10*f}px;border-bottom:1px solid ${ac};padding-bottom:${7*f}px;">EDISI TERBATAS / LIMITED EDITION</div>` : ''}
+          <div style="font-size:${tSize}px;font-weight:bold;line-height:1.0;color:${ac};letter-spacing:${-1*f}px;word-break:break-word;text-transform:uppercase;border-bottom:${4*f}px solid ${ac};padding-bottom:${8*f}px;margin-bottom:${10*f}px;">
+            ${esc(title) || 'JUDUL ZINE'}
+          </div>
+          <div style="display:flex;gap:${12*f}px;">
+            <div style="width:${3*f}px;background:${ac};flex-shrink:0;"></div>
+            <div style="color:#333;font-size:${12*f}px;line-height:2.0;word-break:break-word;white-space:pre-wrap;max-height:${bodyMaxH}px;overflow:hidden;">
+              ${esc(body) || 'Tulis sesuatu di sini.'}
+            </div>
+          </div>
+        </div>
+        <div style="position:absolute;bottom:0;left:0;right:0;background:${ac};color:#f8f8f8;padding:${7*f}px ${18*f}px;display:flex;justify-content:space-between;font-size:${9*f}px;letter-spacing:${2*f}px;">
+          <span>${esc(tag||'anonim').toUpperCase()}</span>
+          <span>▲</span>
+        </div>
+      </div>`;
+  }
+
+  // ── DUSK ──────────────────────────────
+  function tmplDusk() {
+    const tSize    = title.length > 20 ? 34*f : 50*f;
+    const bodyMaxH = hasPhoto ? 88*f : 235*f;
+    return `
+      <div style="width:${w}px;height:${h}px;background:#080810;font-family:'Cormorant Garamond','Times New Roman',serif;position:relative;overflow:hidden;box-sizing:border-box;">
+        ${hasPhoto ? `
+          <div style="position:absolute;inset:0;z-index:0;">
+            <img src="${photo}" width="${w}" height="${h}" style="width:${w}px;height:${h}px;object-fit:cover;display:block;opacity:0.28;" />
+            <div style="position:absolute;inset:0;background:linear-gradient(to bottom,#080810bb 0%,transparent 45%,#080810dd 100%);"></div>
+          </div>
+        ` : ''}
+        <div style="position:absolute;top:0;left:0;right:0;height:${3*f}px;background:${ac};opacity:0.6;z-index:2;"></div>
+        <div style="position:absolute;top:${16*f}px;left:50%;transform:translateX(-50%);color:${ac};font-size:${9*f}px;letter-spacing:${7*f}px;opacity:0.5;font-family:'Special Elite',monospace;white-space:nowrap;z-index:2;">· BERZINE ·</div>
+        <div style="padding:${55*f}px ${28*f}px ${75*f}px;height:100%;box-sizing:border-box;display:flex;flex-direction:column;justify-content:center;position:relative;z-index:2;">
+          <div style="color:${ac};font-size:${tSize}px;font-weight:300;font-style:italic;line-height:1.1;letter-spacing:${1*f}px;word-break:break-word;margin-bottom:${14*f}px;">
+            ${esc(title) || 'Judul Zine'}
+          </div>
+          <div style="display:flex;align-items:center;gap:${10*f}px;margin-bottom:${14*f}px;">
+            <div style="flex:1;height:1px;background:${ac};opacity:0.3;"></div>
+            <span style="color:${ac};opacity:0.6;font-size:${12*f}px;">✦</span>
+            <div style="flex:1;height:1px;background:${ac};opacity:0.3;"></div>
+          </div>
+          <div style="color:#7a7a9a;font-size:${14*f}px;line-height:2.0;font-style:italic;font-weight:300;word-break:break-word;white-space:pre-wrap;max-height:${bodyMaxH}px;overflow:hidden;">
+            ${esc(body) || 'Tulis sesuatu di sini. Kata-katamu adalah seni.'}
+          </div>
+        </div>
+        <div style="position:absolute;bottom:${16*f}px;left:0;right:0;text-align:center;color:${ac};opacity:0.45;font-size:${9*f}px;letter-spacing:${4*f}px;font-family:'Special Elite',monospace;z-index:2;">
+          — ${esc(tag||'ANONIM').toUpperCase()} —
+        </div>
+        <div style="position:absolute;bottom:0;left:0;right:0;height:${3*f}px;background:${ac};opacity:0.6;z-index:2;"></div>
+      </div>`;
+  }
+
+  // ── TORN ──────────────────────────────
+  function tmplTorn() {
+    const tSize    = title.length > 15 ? 48*f : 66*f;
+    const bodyMaxH = hasPhoto ? 72*f : 235*f;
+    return `
+      <div style="width:${w}px;height:${h}px;background:#fffbf0;font-family:'Bebas Neue',impact,sans-serif;position:relative;overflow:hidden;box-sizing:border-box;">
+        <div style="position:absolute;top:${-40*f}px;right:${-40*f}px;width:${160*f}px;height:${160*f}px;background:${ac};opacity:0.15;transform:rotate(45deg);"></div>
+        <div style="padding:${16*f}px ${18*f}px ${10*f}px;">
+          <div style="display:inline-block;background:${ac};color:#fff;padding:${3*f}px ${10*f}px;font-size:${10*f}px;letter-spacing:${3*f}px;font-family:'Special Elite',monospace;margin-bottom:${6*f}px;">BERZINE</div>
+          <div style="font-size:${tSize}px;font-weight:bold;line-height:0.9;color:#1a1a1a;letter-spacing:${-1*f}px;text-transform:uppercase;word-break:break-word;">
+            ${esc(title) || 'JUDUL ZINE'}
+          </div>
+          <div style="background:${ac};height:${5*f}px;margin:${8*f}px 0;"></div>
+          ${hasPhoto ? `
+            <div style="transform:rotate(-1.5deg);box-shadow:${4*f}px ${4*f}px 0 #1a1a1a;margin-bottom:${8*f}px;overflow:hidden;">
+              ${imgEl(w-36*f, 106*f)}
+            </div>
+          ` : ''}
+          <div style="font-family:'Special Elite','Courier New',monospace;font-size:${13*f}px;line-height:1.8;color:#3a3a3a;word-break:break-word;white-space:pre-wrap;max-height:${bodyMaxH}px;overflow:hidden;">
+            ${esc(body) || 'Tulis sesuatu di sini.'}
+          </div>
+        </div>
+        <div style="position:absolute;bottom:${26*f}px;right:${16*f}px;background:#1a1a1a;color:#fffbf0;padding:${5*f}px ${12*f}px;font-family:'Special Elite',monospace;font-size:${10*f}px;letter-spacing:${2*f}px;transform:rotate(-2deg);">
+          ${esc(tag||'anonim').toLowerCase()}
+        </div>
+        <div style="position:absolute;bottom:0;left:0;width:${48*f}px;height:${48*f}px;background:${ac};opacity:0.8;"></div>
+      </div>`;
+  }
+
+  const map = { riot:tmplRiot, soft:tmplSoft, ink:tmplInk, dusk:tmplDusk, torn:tmplTorn };
+  return (map[template] || map.riot)();
+}
+
+/* ═══════════════════════════════════════
+   RENDER
+═══════════════════════════════════════ */
+function renderTemplate() {
+  document.getElementById('zine-preview').innerHTML = buildTemplate(state, 1);
+}
+
+/* ═══════════════════════════════════════
+   EXPORT
+═══════════════════════════════════════ */
+async function exportZine() {
+  const btn = document.getElementById('export-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ RENDERING...';
+
+  try {
+    // Ensure fonts are loaded
+    await document.fonts.ready;
+
+    const container = document.getElementById('export-canvas-container');
+    container.innerHTML = buildTemplate(state, EXPORT_SCALE);
+    const el = container.firstElementChild;
+
+    // Wait for all images inside the export element to finish loading
+    const imgs = Array.from(el.querySelectorAll('img'));
+    await Promise.all(imgs.map(img =>
+      img.complete
+        ? Promise.resolve()
+        : new Promise(resolve => { img.onload = resolve; img.onerror = resolve; })
+    ));
+
+    // Small buffer to let browser repaint
+    await new Promise(r => setTimeout(r, 400));
+
+    const canvas = await html2canvas(el, {
+      scale:           1,
+      useCORS:         true,
+      allowTaint:      true,
+      backgroundColor: null,
+      logging:         false,
+      width:           1080,
+      height:          1920,
+      imageTimeout:    10000,
+    });
+
+    // Trigger download
+    const link  = document.createElement('a');
+    const stamp = new Date().toISOString().slice(0,10);
+    link.download = `berzine-${state.template.toUpperCase()}-${stamp}.png`;
+    link.href = canvas.toDataURL('image/png');
+    link.click();
+
+    btn.textContent = '✓ TERSIMPAN!';
+    setTimeout(() => {
+      btn.textContent = '↓ SIMPAN SEBAGAI PNG';
+      btn.disabled = false;
+    }, 2500);
+
+  } catch (err) {
+    console.error('[BERZINE] Export error:', err);
+    btn.textContent = '↓ SIMPAN SEBAGAI PNG';
+    btn.disabled = false;
+    alert('Gagal export. Coba lagi ya!');
+  }
+}
+
+/* ═══════════════════════════════════════
+   BUILD TEMPLATE GRID
+═══════════════════════════════════════ */
+function buildTmplGrid() {
+  const grid = document.getElementById('tmpl-grid');
+  TEMPLATES.forEach((t, i) => {
+    const btn = document.createElement('button');
+    btn.type      = 'button';
+    btn.className = 'tmpl-btn' + (i === 0 ? ' active' : '');
+    btn.dataset.id = t.id;
+    btn.innerHTML = `${t.name}<span class="tmpl-desc">${t.desc}</span>`;
+    btn.addEventListener('click', () => setTemplate(t.id));
+    grid.appendChild(btn);
+  });
+}
+
+/* ═══════════════════════════════════════
+   INIT  (runs after DOM is ready)
+═══════════════════════════════════════ */
+document.addEventListener('DOMContentLoaded', function () {
+  // Build UI
+  buildTmplGrid();
+  renderAccents();
+  document.getElementById('app').style.setProperty('--ac', state.accent);
+  renderTemplate();
+
+  // Input events
+  document.getElementById('inp-title').addEventListener('input', onInput);
+  document.getElementById('inp-body').addEventListener('input', onInput);
+  document.getElementById('inp-tag').addEventListener('input', onInput);
+
+  // Photo events
+  document.getElementById('inp-photo').addEventListener('change', handlePhotoChange);
+  document.getElementById('photo-remove').addEventListener('click', removePhoto);
+
+  // Export button
+  document.getElementById('export-btn').addEventListener('click', exportZine);
+});
+</script>
